@@ -105,26 +105,45 @@ async fn main() -> Result<()> {
     )?;
     println!("Net-flow computed for Binance.");
 
-    // 5. RPC to fetch latest block (new part)
-    let rpc_url = env::var("POLYGON_RPC").expect("POLYGON_RPC must be set"); // Get Alchemy URL
-    let client = Client::new(); // Sets up a tool to send requests
+    // 5. RPC to fetch latest block (new part) and its transactions 
 
-    let res: Value = client
-        .post(&rpc_url) // Sends request to Alchemy
-        .json(&serde_json::json!({ // Data to send
-            "jsonrpc": "2.0", // RPC protocol version
-            "method": "eth_blockNumber", // Asks for the latest block
-            "params": [], 
-            "id": 1 // Unique request ID
-        }))
-        .timeout(Duration::from_secs(10)) // Limits wait to 10 seconds
-        .send()
-        .await? // Waits for the response
-        .json()
-        .await?; // Turns response into JSON
-    let block_hex = res["result"].as_str().unwrap_or("0x0"); // Gets the block number (in hex)
-    let block_num = u64::from_str_radix(&block_hex[2..], 16)?; // Converts hex to number
-    println!("Latest block number: {}", block_num); // Shows the result
 
-    Ok(())
+// Fetch latest block number
+let rpc_url = env::var("POLYGON_RPC").expect("POLYGON_RPC must be set");
+let client = Client::new();
+let res: Value = client
+    .post(&rpc_url)
+    .json(&serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "eth_blockNumber",
+        "params": [],
+        "id": 1
+    }))
+    .timeout(Duration::from_secs(10))
+    .send()
+    .await?
+    .json()
+    .await?;
+let block_hex = res["result"].as_str().unwrap_or("0x0");
+let block_num = u64::from_str_radix(&block_hex[2..], 16)?;
+
+// Fetch block details with transactions
+let block_res: Value = client
+    .post(&rpc_url)
+    .json(&serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "eth_getBlockByNumber",
+        "params": [format!("0x{:x}", block_num), true], // true for full tx objects
+        "id": 2
+    }))
+    .timeout(Duration::from_secs(20))
+    .send()
+    .await?
+    .json()
+    .await?;
+let empty_vec = vec![]; // Create a longer-lived empty vector
+let transactions = block_res["result"]["transactions"].as_array().unwrap_or(&empty_vec);
+println!("Transactions in block {}: {:?}", block_num, transactions);
+
+Ok(())
 }
