@@ -10,3 +10,4 @@ rusqlite = { version = "0.31", features = ["bundled"] }  # for sqlite handling a
 reqwest = { version = "0.11", features = ["json"] }      # for http client
 tokio = { version = "1", features = ["full"] }           # for async runtime
 serde_json = "1.0"                                       # for json file handling
+chrono = "0.4"
